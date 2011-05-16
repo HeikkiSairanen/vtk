@@ -1,3 +1,5 @@
+// Released under: The MIT License
+
 // dot: x,y, group_id, text
 // group, color, name, activated
 function draw_dots(dots, groups, elementId, width, height) {
