@@ -10,6 +10,7 @@ function draw_dots(dots, groups, elementId, width, height) {
     this.chart.groups = groups;
     this.chart.dots = dots;
     this.chart.highlights = new Array;
+    this.chart.zoomfactor = 12;
 	this.chart.main_selected = -1;
 
     for(x = 0; x < dots.length;x++) {
@@ -28,20 +29,29 @@ function draw_dots(dots, groups, elementId, width, height) {
  return this;
 }
 
+function update_dots(dots) {
+    this.chart.dots = dots;
+    for(x=0; x < dots.length; x++) {
+	this.chart.circles[x].attr('cx', convert_from_data_to_screen_x(dots[x].x));
+	this.chart.circles[x].attr('cy', convert_from_data_to_screen_y(dots[x].y));
+    }
+
+}
+
 function convert_from_data_to_screen_x(x) {
- return this.chart.width / 2 + (10*this.chart.width/2)*x; 
+    return this.chart.width / 2 + (this.chart.zoomfactor*this.chart.width/2)*x;
 }
 
 function convert_from_data_to_screen_y(y) {
- return this.chart.height / 2 - (10*this.chart.height/2)*y
+    return this.chart.height / 2 - (this.chart.zoomfactor*this.chart.height/2)*y;
 }
 
 function convert_from_screen_to_data_x(x) {
- return (x-this.chart.width/2)/(10*this.chart.width/2);
+ return (x-this.chart.width/2)/(this.chart.zoomfactor*this.chart.width/2);
 }
 
 function convert_from_screen_to_data_y(y) {
- return (this.chart.height/2 - y) / (10*this.chart.height/2);
+ return (this.chart.height/2 - y) / (this.chart.zoomfactor*this.chart.height/2);
 }
 
 
@@ -51,7 +61,8 @@ function toggle_activate(group) {
 	//	document.write(this.chart.dots[x].group_id);
 	if(this.chart.dots[x].group_id == group) {
 	    if(this.chart.groups[group].activated) {
-		draw_circle(x);
+		circle = draw_circle(x);
+		circle.toFront();
 	    }
 	    else {
 		this.chart.circles[x].attr("r", "0");
@@ -106,10 +117,10 @@ function highlight(to_highlight) {
 function draw_circle(x) {
     if(is_active(x)) {
 	if(this.dots[x].highlight) {
-	    this.chart.circles[x].attr("r", "5");
+	    return this.chart.circles[x].attr("r", "7");
 	}
 	else {
-	    this.chart.circles[x].attr("r", "1");
+	    return this.chart.circles[x].attr("r", "2");
 	}
     }
 
