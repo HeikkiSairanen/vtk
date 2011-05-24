@@ -2,7 +2,7 @@
 
 // dot: x,y, group_id, text
 // group, color, name, activated
-function draw_dots(dots, groups, elementId, width, height) {
+function draw_dots(dots, groups, elementId, width, height,angle) {
     this.chart = new Object;
     this.chart.width = width;
     this.chart.height = height;
@@ -11,23 +11,59 @@ function draw_dots(dots, groups, elementId, width, height) {
     this.chart.dots = dots;
     this.chart.highlights = new Array;
     this.chart.zoomfactor = 12;
-	this.chart.main_selected = -1;
-
-    for(x = 0; x < dots.length;x++) {
-	dots[x].highlight = false;
+    this.chart.main_selected = -1;
+    this.chart.special = -1;
+    this.chart.rotation = get_rotation_matrix(angle);
+    rotate();
+    for(x = 0; x < this.dots.length;x++) {
+	this.dots[x].highlight = false;
     }
+
     this.paper = Raphael(document.getElementById(elementId), this.chart.width, this.chart.height);
     this.paper.rect(0,0,this.chart.width,this.chart.height);
-    for(x=0; x < dots.length; x++) {
-	var circle = this.paper.circle(convert_from_data_to_screen_x(dots[x].x), 
-		convert_from_data_to_screen_y(dots[x].y), 3);
-	circle.attr("fill", groups[dots[x].group_id].color);
-	circle.attr("stroke", groups[dots[x].group_id].color);
+    for(x=0; x < this.dots.length; x++) {
+	var circle = this.paper.circle(convert_from_data_to_screen_x(this.dots[x].x), 
+		convert_from_data_to_screen_y(this.dots[x].y), 3);
+	circle.attr("fill", groups[this.dots[x].group_id].color);
+	circle.attr("stroke", groups[this.dots[x].group_id].color);
 	this.chart.circles.push(circle);
     }
  highlight([]);
  return this;
 }
+
+function draw_dot_graph(elementId, width, height, value_x, value_y) {
+    this.chart = new Object;
+    this.chart.width = width;
+    this.chart.height = height;
+
+    this.paper = Raphael(document.getElementById(elementId), this.chart.width, this.chart.height);
+    this.paper.rect(0,0,this.chart.width,this.chart.height);
+    
+    max_value_x = get_max(value_x);
+    max_value_y = get_max(value_y);
+
+
+    for(c = 0; c < value_x.length; c++) {
+	this.paper.circle(width*value_x[c]/max_value_x, height-(height*value_y[c]/max_value_y), 5);
+	document.write(value_x[c] + ", " + value_y[c] + "<br />");
+    }
+
+}
+
+function get_max(value) {
+    var large_value = -100000;
+    var largest = -1;
+    for(c = 0; c < value.length; c++) {
+	if(value[c] > large_value || largest == -1) {
+	    largest = c;
+	    large_value = value[c];
+	}
+    }
+    return large_value;
+}
+
+
 
 function update_dots(dots) {
     this.chart.dots = dots;
@@ -36,6 +72,30 @@ function update_dots(dots) {
 	this.chart.circles[x].attr('cy', convert_from_data_to_screen_y(dots[x].y));
     }
 
+}
+
+function get_rotation_matrix(angle) {
+    return [[Math.cos(angle), -Math.sin(angle)],[Math.sin(angle), Math.cos(angle)]];
+}
+
+function rotate() {
+    for(c = 0; c < dots.length; c++) {
+	var x = dots[c].x;
+	var y = dots[c].y;
+	
+	this.dots[c].x = x * this.chart.rotation[0][0] + y * this.chart.rotation[0][1];
+	this.dots[c].y = x * this.chart.rotation[1][0] + y * this.chart.rotation[1][1];
+    }
+}
+
+function specialize_by_id(special) {
+    for(x = 0; x < dots.length; x++) {
+	if(this.dots[x].id == special) {
+	    this.chart.special = x;
+	    draw_circle(x);
+	    return;
+	}
+    }
 }
 
 function convert_from_data_to_screen_x(x) {
@@ -78,7 +138,7 @@ function find_nearest_circle(x,y, max) {
  var shortest = 10000000;
  var nearest_dot = -1;
  for(c = 0; c < dots.length; c++) {
-     if(is_active(c)) {
+     if(is_active(c) && this.dots[c].id != this.chart.special) {
 	 var dot = dots[c];
 	 dist_x = dot.x-xd;
 	 dist_y = dot.y-yd;
@@ -107,25 +167,95 @@ function highlight(to_highlight) {
 
     for(x = 0; x < to_highlight.length; x++) {
 	this.dots[to_highlight[x]].highlight = true;
-	this.chart.circles[to_highlight[x]].toFront();
+
     }
     for(x = 0; x < this.dots.length; x++) {
 	draw_circle(x);
     }    
+    for(x = 0; x < to_highlight.length; x++) {
+	this.chart.circles[to_highlight[x]].toFront();
+    }
 }
 
 function draw_circle(x) {
+    var normal_width = 3;
     if(is_active(x)) {
+	if(this.chart.special == x) {
+	    var pos_x = convert_from_data_to_screen_x(this.chart.dots[x].x);
+	    var pos_y = convert_from_data_to_screen_y(this.chart.dots[x].y);
+	    
+	    this.chart.circles[x] = draw_x(pos_x,pos_y);
+	}
 	if(this.dots[x].highlight) {
-	    return this.chart.circles[x].attr("r", "7");
+		return this.chart.circles[x].attr("r", normal_width*3);
 	}
 	else {
-	    return this.chart.circles[x].attr("r", "2");
+	    return this.chart.circles[x].attr("r", dots[x].dist/2-3);
+	    //	    return this.chart.circles[x].attr("r", normal_width);
 	}
     }
 
 }
 
+function draw_x(x,y) {
+    var radius = 50;
+    var cross = this.paper.set();
+    
+    cross.push(
+	       draw_line(x-radius,y-radius,x+radius,y+radius, radius/5),
+	       draw_line(x-radius,y+radius,x+radius,y-radius, radius/5)
+	    );
+    return cross;
+}
+
+
+// Draw line with circles at ends
+function draw_line(x1,y1,x2,y2,width) {  
+    pos1 = [x1,y1];
+    pos2 = [x2,y2];
+    
+    direction = get_direction_vector(pos1,pos2);
+    rot = rotate90(direction);
+
+    x1 = pos1[0] + width/2 * rot[0];
+    y1 = pos1[1] + width/2 * rot[1];
+
+    x2 = pos2[0] + width/2 * rot[0];
+    y2 = pos2[1] + width/2 * rot[1];
+
+    x3 = pos2[0] - width/2 * rot[0];
+    y3 = pos2[1] - width/2 * rot[1];
+
+    x4 = pos1[0] - width/2 * rot[0];
+    y4 = pos1[1] - width/2 * rot[1];
+
+    var st = paper.path("M " + x1 + " " + y1 + " L "
+			+ x2 + " " + y2 + " L "
+			+ x3 + " " + y3 + " L "
+			+ x4 + " " + y4 + " z");
+    st.attr("fill", "black");
+    return st;
+}
+
+function draw_simple_line(pos1,pos2) {
+    return paper.path("M" + pos1[0] + " " + pos1[1] + "L" + pos2[0] + " " + pos2[1]);
+}
+
+
+function rotate90(vector) {
+    return [vector[1], -vector[0]];
+}
+
+function get_direction_vector(pos1,pos2) {
+    dir = [pos2[0] - pos1[0], pos2[1] - pos1[1]];
+    dir[0] = dir[0] / vector_length(dir);
+    dir[1] = dir[1] / vector_length(dir);
+    return dir;
+}
+
+function vector_length(vector) {
+    return Math.sqrt(vector[1] * vector[1] + vector[0] * vector[0]);
+}
 
 function draw_time_graph(point, elementId, width, height, draw_bar) {
 	chart = new Object;
